@@ -1,0 +1,42 @@
+# .gitignore
+
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/Assets/AssetStoreTools*
+sysinfo.txt
+*.pidb.meta
+*.log
+ 
+# VS/Rider/MD/Consulo
+ExportedObj/
+.consulo/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+ 
+# Builds
+*.apk
+*.unitypackage
+*.app
+*.exe
+.vs/FnaF/v15/Server/sqlite3/storage.ide
+.vs/FnaF/v15/Server/sqlite3/storage.ide-shm
+.vs/FnaF/v15/Server/sqlite3/storage.ide-wal
+Logs/shadercompiler-UnityShaderCompiler.exe0.log
+*.log
+.vs/FnaF/v15/Server/sqlite3/storage.ide
+.vs/FnaF/v15/Server/sqlite3/storage.ide-shm
+.vs/FnaF/v15/Server/sqlite3/storage.ide-wal
+Logs/shadercompiler-UnityShaderCompiler.exe0.log
