@@ -8,18 +8,25 @@ public class UPGMeshPool {
     public UPGSettings settings;
 
     // internal
-    public bool initialCreated = false;
-    public Dictionary<UPGLOD, List<GameObject>> availableMeshes = new Dictionary<UPGLOD, List<GameObject>>();
-    private Dictionary<UPGLOD, Dictionary<(int cx, int cz), GameObject>> activeMeshes = 
+    private bool initialCreated = false;
+    private Dictionary<UPGLOD, List<GameObject>> availableMeshes = new Dictionary<UPGLOD, List<GameObject>>();
+    private Dictionary<UPGLOD, Dictionary<(int cx, int cz), GameObject>> activeMeshes =
         new Dictionary<UPGLOD, Dictionary<(int cx, int cz), GameObject>>();
+
+    public UPGMeshPool() {
+        foreach (UPGLOD l in Enum.GetValues(typeof(UPGLOD))) {
+            availableMeshes[l] = new List<GameObject>();
+            activeMeshes[l] = new Dictionary<(int cx, int cz), GameObject>();
+        }
+    }
 
     public List<((int x, int z), UPGLOD lod)> createInitialMeshes(GameObject chunkStencil) {
         if (initialCreated) { return null; }
-        if (settings.renderDst <= settings.farLimit) { throw new Exception("Render distance has to be > "+settings.farLimit.ToString()); }
+        if (settings.renderDst <= settings.farLimit) { throw new Exception("Render distance has to be > " + settings.farLimit.ToString()); }
 
         var ret = new List<((int x, int z), UPGLOD lod)>();
-        for (int i = -settings.renderDst; i < settings.renderDst + 1; i++) {
-            for (int j = -settings.renderDst; j < settings.renderDst + 1; j++) {
+        for (int i = -settings.renderDst; i <= settings.renderDst; i++) {
+            for (int j = -settings.renderDst; j <= settings.renderDst; j++) {
 
                 if (i < -settings.closeLimit || i > settings.closeLimit
                     || j < -settings.closeLimit || j > settings.closeLimit) {
@@ -51,6 +58,10 @@ public class UPGMeshPool {
             generateMesh(ch.lod, chunkStencil);
         }
 
+        foreach (UPGLOD l in Enum.GetValues(typeof(UPGLOD))) {
+            Debug.Log("pool size ("+l+"): " + availableMeshes[l].Count);
+        }
+
         initialCreated = true;
         return ret;
     }
@@ -61,16 +72,16 @@ public class UPGMeshPool {
 
         Vector3[] verts = new Vector3[cverts * cverts];
         Vector2[] uvs = new Vector2[cverts * cverts];
-        int[] tris = new int[(cverts-1) * (cverts-1) * 6];
+        int[] tris = new int[(cverts - 1) * (cverts - 1) * 6];
 
         int vertIndex = 0;
-        int triIndex = 0; 
+        int triIndex = 0;
         for (int z = 0; z < settings.chunkSize; z += cinc) {
             for (int x = 0; x < settings.chunkSize; x += cinc) {
                 verts[vertIndex] = new Vector3(x, 0, z);
                 uvs[vertIndex] = new Vector2(x / (float)settings.chunkSize, z / (float)settings.chunkSize);
 
-                if (x < settings.chunkSize-cinc && z < settings.chunkSize-cinc) {
+                if (x < settings.chunkSize - cinc && z < settings.chunkSize - cinc) {
                     tris[triIndex] = vertIndex + cverts;
                     tris[triIndex + 1] = vertIndex + cverts + 1;
                     tris[triIndex + 2] = vertIndex;
@@ -91,9 +102,8 @@ public class UPGMeshPool {
         m.triangles = tris;
         m.uv = uvs;
         m.RecalculateNormals();
-        
+
         GameObject go = GameObject.Instantiate(chunkStencil);
-        go.SetActive(false);
         go.transform.position = Vector3.zero;
         go.GetComponent<MeshFilter>().sharedMesh = m;
         availableMeshes[lod].Add(go);
@@ -116,19 +126,25 @@ public class UPGMeshPool {
     }
 
     public GameObject getNewMeshInstance((int cx, int cz) id, UPGLOD lod) {
-        if (availableMeshes.Count > 0) {
+        if (availableMeshes[lod].Count > 0) {
             GameObject go = availableMeshes[lod][0];
             availableMeshes[lod].RemoveAt(0);
             activeMeshes[lod][id] = go;
             return go;
         }
-        return null;
+
+        throw new Exception("No more meshes in pool");
     }
 
     public void freeMesh((int cx, int cz) id, UPGLOD lod) {
+        if (!activeMeshes[lod].ContainsKey(id)) { throw new Exception("Chunk with id "+id+" is not in active chunk list ("+lod+")"); }
+
         GameObject go = activeMeshes[lod][id];
         activeMeshes[lod].Remove(id);
+        go.name = "Mesh(Clone)";
         go.SetActive(false);
         availableMeshes[lod].Add(go);
     }
+
+    public int getFreeMeshCount(UPGLOD lod) { return availableMeshes[lod].Count; }
 }

@@ -44,7 +44,9 @@ public enum UPGLOD {
 
 public static class UPGTools {
     public static (int cx, int cz) getChunkCoord(Vector3 p, UPGSettings s) {
-        return ((int)p.x / (int)s.chunkSize, (int)p.z / (int)s.chunkSize);
+        int x = Mathf.RoundToInt(p.x / s.chunkSize);
+        int z = Mathf.RoundToInt(p.z / s.chunkSize);
+        return (x, z);
     }
 
     public static int returnChunkChangeDir(int c, int cur) {
