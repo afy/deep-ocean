@@ -6,6 +6,7 @@ using UnityEngine;
 public class UPGMeshPool {
     // settings
     public UPGSettings settings;
+    public UPGDebugSettings debugSettings;
 
     // internal
     private bool initialCreated = false;
@@ -108,6 +109,7 @@ public class UPGMeshPool {
         go.GetComponent<MeshFilter>().sharedMesh = m;
         availableMeshes[lod].Add(go);
 
+        if (!debugSettings.colouredMeshes) { return; }
         switch (lod) {
             case UPGLOD.Far:
                 go.GetComponent<MeshRenderer>().material.color = Color.red;

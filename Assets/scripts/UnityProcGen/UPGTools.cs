@@ -27,16 +27,17 @@ public struct UPGSettings {
     public int closeLimit;
     public int mediumLimit;
     public int farLimit;
+    public int chunkPoolLimit;
 }
 
 [Serializable]
-public class UPGChunkData {
-    public (int cx, int cz) id;
-    public Dictionary<UPGLOD, Vector3[]> verts;
+public struct UPGDebugSettings {
+    public bool colouredMeshes;
+    public bool forceFlatTerrain;
 }
 
 public enum UPGLOD {
-    Close = 0,
+    Close = 2,
     Medium = 8,
     Far = 12,
     Distant = 16

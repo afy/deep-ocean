@@ -14,11 +14,10 @@ using System.Runtime.InteropServices;
 
 -Fix bug where moving on x axis after z-axis movement will fuck up chunk loading
   moving too fast will also cause this bug
--Make a "chunk buffer" to limit storage taken up by the chunk list in UnityProcGen (capped FIFO with overflow?)
 -Add support for objects in separate chunk-related storage from heightpoints (easily recalculated, but objects are persistent).
   maybe a database?
 -General optimization ideas:
-    -Try using "half" class for points instead of float
+    -Try using "half" class for points instead of vector3 using a vertex-shader based heightmap renderer
     -Review the sketchy NativeArray -> Vector3[] in calculateChunkHeights function
     -Multithreaded loading (if not already) 
     -Review LOD levels for "Close" (possible save on verteces)
@@ -29,32 +28,44 @@ using System.Runtime.InteropServices;
 public class UnityProcGen : MonoBehaviour {
     // unity
     public UPGSettings upgSettings;
-    public UPGMeshPool meshPool;
+    public UPGDebugSettings upgDebugSettings;
     public GameObject chunkStencil;
     public GameObject target;
     public bool debugOverrideHeight;
     public Text debugTextChunks;
 
     // internal
-    private Dictionary<(int cx, int cz), UPGChunkData> chunks = new Dictionary<(int cx, int cz), UPGChunkData>();
+    private UPGMeshPool meshPool;
+    private UPGChunkPool chunkPool;
     private (int cx, int cz) currentChunk;
-    private int debugChunkLoadedSize;
+    private bool initialized;
 
     private void Start() {
+        int nochunks = (2 * upgSettings.renderDst + 1) * (2 * upgSettings.renderDst + 1);
+        if (upgSettings.chunkPoolLimit < nochunks) {
+            throw new Exception("chunk pool limit ("+upgSettings.chunkPoolLimit+") cannot be smaller than number of chunks ("+nochunks+")");
+        }
+
         currentChunk = UPGTools.getChunkCoord(target.transform.position, upgSettings);
         meshPool = new UPGMeshPool() {
             settings = upgSettings,
+            debugSettings = upgDebugSettings
         };
         var ret = meshPool.createInitialMeshes(chunkStencil);
+        chunkPool = new UPGChunkPool() {
+            settings = upgSettings
+        };
         foreach (var e in ret) {
             loadChunk((e.Item1.x, e.Item1.z), e.lod);
         }
         float y = target.transform.position.y;
         target.transform.position = new Vector3((currentChunk.cx + 0.5f) * upgSettings.chunkSize, y, (currentChunk.cz + 0.5f) * upgSettings.chunkSize);
+        initialized = true;
     }
 
     private void Update() {
-        debugTextChunks.text = "#" + chunks.Count + " - " + debugChunkLoadedSize;
+        if (!initialized) { return; }
+        debugTextChunks.text = "#" + chunkPool.getNumberOfChunks() + ", VL: " + chunkPool.getNumberOfVertLists() + ",  OL: " + chunkPool.getNumberOfObjLists();
 
         var c = UPGTools.getChunkCoord(target.transform.position, upgSettings);
         if (c == currentChunk) { return; }
@@ -63,58 +74,51 @@ public class UnityProcGen : MonoBehaviour {
     }
 
     private void loadChunk((int cx, int cz) id, UPGLOD lod) {
-        if (!chunks.ContainsKey(id)) {
-            createChunk(id);
+        if (!chunkPool.isChunkStored(id)) {
+            chunkPool.addChunkToList(id);
         }
-        if (!chunks[id].verts.ContainsKey(lod)) {
+        if (!chunkPool.areVertsStored(id, lod)) {
             calculateChunkHeights(id, lod);
         }
 
         setChunk(id, lod);
     }
 
-    private void createChunk((int cx, int cz) id) {
-        UPGChunkData chunk = new UPGChunkData();
-        chunk.verts = new Dictionary<UPGLOD, Vector3[]>();
-        chunk.id = id;
-        chunks[id] = chunk;
-    }
-
     private void calculateChunkHeights((int cx, int cz) id, UPGLOD lod) {
-        if (chunks[id].verts.ContainsKey(lod)) { throw new Exception("values already exist for this chunk's lod"); }
+        if (chunkPool.areVertsStored(id, lod)) { throw new Exception("values already exist for this chunk's lod"); }
 
         int cinc = ((int)lod == 0) ? 1 : (int)lod * 2;
         int cverts = (upgSettings.chunkSize - 1) / cinc + 1;
         var result = new NativeArray<Vector3>(cverts * cverts, Allocator.Persistent);
         var job = new UPGHeightJob() {
             settings = upgSettings,
+            debugSettings = upgDebugSettings,
             result = result,
             cx = id.cx,
             cz = id.cz,
             cinc = cinc,
-            cverts = cverts,
-            debugOH = debugOverrideHeight
+            cverts = cverts
         };
         var handle = job.Schedule(cverts * cverts, cverts * cverts);
         handle.Complete();
 
         Mesh m = new Mesh();
         m.SetVertices(job.result);
-        chunks[id].verts[lod] = m.vertices;
-        debugChunkLoadedSize += 1;
+        chunkPool.setVerts(id, lod, m.vertices);
         result.Dispose();
     }
 
     private void setChunk((int cx, int cz) id, UPGLOD lod) {
         if (meshPool.getFreeMeshCount(lod) <= 0) { throw new Exception("No meshes in available pool"); }
-        if (!chunks.ContainsKey(id)) { throw new Exception("No chunk of that id has been created"); }
+        if (!chunkPool.isChunkStored(id)) { throw new Exception("No chunk of that id has been created"); }
+        if (!chunkPool.areVertsStored(id, lod)) { throw new Exception("no verts have been stored for this lod"); }
 
         GameObject go = meshPool.getNewMeshInstance(id, lod);
         go.name = "chunk (" + id.cx.ToString() + ", " + id.cz.ToString() + ")";
         float y = go.transform.position.y;
         go.transform.position = new Vector3(id.cx * (upgSettings.chunkSize - 1), y, id.cz * (upgSettings.chunkSize - 1));
         Mesh m = go.GetComponent<MeshFilter>().sharedMesh;
-        m.SetVertices(chunks[id].verts[lod]);
+        m.SetVertices(chunkPool.getVerts(id, lod));
         m.RecalculateNormals();
         go.SetActive(true);
     }
@@ -127,7 +131,6 @@ public class UnityProcGen : MonoBehaviour {
         var c = currentChunk;
         currentChunk = cn;
 
-        Debug.Log(c);
         for (int i = -upgSettings.renderDst; i <= upgSettings.renderDst; i++) {
             if (sx != 0) {
                 if (i >= -upgSettings.closeLimit && i <= upgSettings.closeLimit) {
@@ -177,11 +180,9 @@ public class UnityProcGen : MonoBehaviour {
         }
 
         foreach (var oc in oldchunks) {
-            //Debug.Log("unloading " + oc);
             meshPool.freeMesh((oc.cx, oc.cz), oc.lod);
         }
         foreach (var nc in newchunks) {
-            //Debug.Log("loading " + nc);
             loadChunk((nc.cx, nc.cz), nc.lod);
         }
     }

@@ -161,7 +161,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: d0b7e48f9f3bc3b46baeef6ed2db72fb, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -492,7 +492,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rotSens: 20
-  moveSpeed: 1000
+  moveSpeed: 100
   mainCamera: {fileID: 963194225}
 --- !u!4 &1242258723
 Transform:
@@ -501,7 +501,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1242258721}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 900, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
@@ -510,7 +510,7 @@ Transform:
   - {fileID: 1691374271}
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!114 &1242258724
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -525,10 +525,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   upgSettings:
     chunkSize: 193
-    renderDst: 4
+    renderDst: 10
     closeLimit: 1
     mediumLimit: 2
     farLimit: 3
+    chunkPoolLimit: 3500
+  upgDebugSettings:
+    colouredMeshes: 1
+    forceFlatTerrain: 0
   chunkStencil: {fileID: 247547521}
   target: {fileID: 1242258721}
   debugOverrideHeight: 0
@@ -863,7 +867,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 675cfd2fb5b9c5f448900bf848a6c564, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

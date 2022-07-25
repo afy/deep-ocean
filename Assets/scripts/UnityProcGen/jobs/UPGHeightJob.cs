@@ -11,11 +11,11 @@ using UnityEngine;
 public struct UPGHeightJob : IJobParallelFor {
     public NativeArray<Vector3> result;
     public UPGSettings settings;
+    public UPGDebugSettings debugSettings;
     public int cx;
     public int cz;
     public int cinc;
     public int cverts;
-    public bool debugOH;
 
     public void Execute(int index) {
         float x = cinc * (index % cverts);
@@ -26,6 +26,6 @@ public struct UPGHeightJob : IJobParallelFor {
         float freq = 0.0007f;
         float amp = 300f;
         float y =  amp * noise.snoise(pos * freq);
-        result[index] = new Vector3(x, (debugOH) ? 0 : y, z);
+        result[index] = new Vector3(x, (debugSettings.forceFlatTerrain) ? 0 : y, z);
     }
 }
